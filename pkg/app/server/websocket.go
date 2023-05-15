@@ -42,7 +42,9 @@ func SocketHandler(c *gin.Context) {
 	session.WaitGroup.Add(1)
 	defer func() {
 		if err := recover(); err != nil {
+			logrus.Error("session id:", s.ID(), "", err)
 			logrus.Error(string(debug.Stack()))
+
 		}
 		s.Close()
 		err = session.DeleteSession(s)

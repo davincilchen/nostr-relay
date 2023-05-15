@@ -1,6 +1,8 @@
 package session
 
 import (
+	"fmt"
+	"nostr-relay/pkg/models"
 	"sync"
 )
 
@@ -8,7 +10,7 @@ type SessionF interface {
 	ID() int
 	Start()
 	Close()
-	OnEvent(fromID int, data []byte) error
+	OnEvent(fromID int, event models.Msg) error
 }
 
 var allSession map[SessionF]struct{}
@@ -19,6 +21,7 @@ func init() {
 }
 
 func trackSession(s SessionF, add bool) {
+
 	allSessionMu.Lock()
 	defer allSessionMu.Unlock()
 
@@ -30,11 +33,18 @@ func trackSession(s SessionF, add bool) {
 }
 
 func ForEachSession(fn func(SessionF)) {
+
+	allSe := make(map[SessionF]struct{}) //avoid deadlock
+
 	allSessionMu.RLock()
 	for s := range allSession {
-		fn(s)
+		allSe[s] = struct{}{}
 	}
 	allSessionMu.RUnlock()
+
+	for s := range allSe {
+		fn(s)
+	}
 }
 
 func CountSession() int {
@@ -44,6 +54,7 @@ func CountSession() int {
 }
 
 func DeleteSession(s SessionF) error {
+	fmt.Println("DeleteSession")
 	trackSession(s, false)
 	return nil
 }

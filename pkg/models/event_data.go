@@ -13,7 +13,7 @@ import (
 	// schnorr "github.com/btcsuite/btcd/btcec/v2/schnorr"
 )
 
-type Msg struct {
+type Msg struct { //TODO: rename
 	ID        string          `json:"id"`
 	Pubkey    string          `json:"pubkey"`
 	CreatedAt int64           `json:"created_at"`

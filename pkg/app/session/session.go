@@ -12,34 +12,51 @@ import (
 )
 
 var id = 0
+var mu sync.Mutex
+
+func GenID() int {
+	mu.Lock()
+	defer mu.Unlock()
+	id++
+	return id
+}
 
 // .. //
 type Session struct {
 	id    int
 	conn  *websocket.Conn
 	mutex sync.Mutex
-	subID *string
+
+	subID  *string
+	mutSub sync.RWMutex
 }
 
 func NewSession(conn *websocket.Conn) *Session {
-	id++
+	id := GenID()
+	fmt.Println("NewSession id:", id)
 	return &Session{
 		id:   id,
 		conn: conn,
 	}
 }
 
-func (t *Session) OnEvent(fromID int, data []byte) error {
+func (t *Session) OnEvent(fromID int, event models.Msg) error {
 
-	if t.ID() != fromID {
-		if !t.isReq() {
+	subID := t.getSubID()
+	if t.ID() != fromID { //不是自己
+		if subID == nil { //沒訂閱
 			return nil
 		}
 	}
-	t.mutex.Lock()
-	defer t.mutex.Unlock()
 
-	return t.conn.WriteMessage(websocket.TextMessage, data)
+	if subID == nil { //自己
+		return t.WriteJson(
+			[]interface{}{"EVENT", "0", event})
+	}
+	id := *subID
+	return t.WriteJson(
+		[]interface{}{"EVENT", id, event})
+
 }
 
 // func (t *Session) WriteMessage(messageType int, data []byte) error {
@@ -91,7 +108,7 @@ func (t *Session) Close() {
 }
 
 func (t *Session) basicInfo() string {
-	return fmt.Sprintf("%15d", id)
+	return fmt.Sprintf("%15d", t.ID())
 }
 
 func (t *Session) msgHandle(message []byte) error {
@@ -113,10 +130,10 @@ func (t *Session) msgHandle(message []byte) error {
 			return e
 		}
 		// Print the event data
-		fmt.Printf("Received event: %+v\n", event)
+		fmt.Printf("Received event in session ID %d : %+v\n", t.ID(), event)
 
 		ForEachSession(func(s SessionF) {
-			s.OnEvent(t.ID(), message)
+			s.OnEvent(t.ID(), event)
 		})
 
 	case "REQ":
@@ -125,13 +142,16 @@ func (t *Session) msgHandle(message []byte) error {
 
 		tmp, ok := msg[1].(string)
 		if ok {
-			t.setReq(&tmp)
+			t.setSubID(&tmp)
 		}
 
+		t.WriteJson([]interface{}{"EOSE", tmp})
 	case "CLOSE":
 		// Subscription has been closed
 		fmt.Printf("Subscription %s closed\n", msg[1])
-		t.setReq(nil)
+		t.setSubID(nil)
+	case "EOSE":
+		fmt.Printf("EOSE  \n")
 	default:
 		log.Printf("Unknown message type: %s\n", msg[0])
 	}
@@ -139,16 +159,23 @@ func (t *Session) msgHandle(message []byte) error {
 	return nil
 }
 
-func (t *Session) setReq(subID *string) {
-	t.mutex.Lock()
-	defer t.mutex.Unlock()
+func (t *Session) setSubID(subID *string) {
+	t.mutSub.Lock()
+	defer t.mutSub.Unlock()
 
 	t.subID = subID
 }
 
-func (t *Session) isReq() bool {
-	t.mutex.Lock()
-	defer t.mutex.Unlock()
+func (t *Session) getSubID() *string {
+	t.mutSub.RLock()
+	defer t.mutSub.RUnlock()
+
+	return t.subID
+}
+
+func (t *Session) IsReq() bool {
+	t.mutSub.RLock()
+	defer t.mutSub.RUnlock()
 
 	return t.subID != nil
 }
