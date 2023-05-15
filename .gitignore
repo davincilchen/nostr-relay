@@ -1,0 +1,6 @@
+*.exe
+.DS_Store
+debug
+__debug_bin
+config.json
+seed.json
