@@ -27,7 +27,6 @@ func SocketHandler(c *gin.Context) {
 	}
 
 	s := session.NewSession(ws)
-	//s.Start()
 
 	defer func() {
 		closeSocketErr := ws.Close()

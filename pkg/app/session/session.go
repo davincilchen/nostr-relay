@@ -49,12 +49,12 @@ func (t *Session) OnEvent(fromID int, event models.Msg) error {
 		}
 	}
 
-	if subID == nil { //自己
-		return t.WriteJson(
-			[]interface{}{"EVENT", "0", event})
+	id := "0" //自己
+	if subID != nil {
+		id = *subID
 	}
-	id := *subID
-	return t.WriteJson(
+
+	return t.WriteJson( //use routine
 		[]interface{}{"EVENT", id, event})
 
 }

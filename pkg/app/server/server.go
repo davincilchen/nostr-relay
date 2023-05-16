@@ -78,6 +78,7 @@ func (t *Server) Serve() {
 
 func (t *Server) init() {
 	initLogger()
+
 }
 
 func (t *Server) Shutdown(c *gin.Context) {
