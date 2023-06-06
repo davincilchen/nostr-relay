@@ -3,13 +3,15 @@ package config
 import (
 	"encoding/json"
 	"io/ioutil"
+	"nostr-relay/pkg/db"
 
 	"github.com/caarlos0/env"
 	_ "github.com/joho/godotenv/autoload" //support .env && autoload
 )
 
 type Config struct {
-	Server Server `json:"Server"`
+	Server Server    `json:"Server"`
+	DB     db.Config `json:"DB"`
 }
 
 type Server struct {
@@ -66,11 +68,19 @@ func NewFromEnv() (*Config, error) {
 	var config Config
 
 	config.Server = *GetServerConfig()
+	config.DB = *GetDBConfig()
+
 	return &config, nil
 }
 
 func GetServerConfig() *Server {
 	cfg := &Server{}
+	env.Parse(cfg)
+	return cfg
+}
+
+func GetDBConfig() *db.Config {
+	cfg := &db.Config{}
 	env.Parse(cfg)
 	return cfg
 }

@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -13,9 +14,13 @@ import (
 
 	"nostr-relay/pkg/app/session"
 	"nostr-relay/pkg/config"
+	"nostr-relay/pkg/db"
+	"nostr-relay/pkg/models"
 
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
+
+	gormlogger "gorm.io/gorm/logger"
 )
 
 type Server struct {
@@ -78,7 +83,52 @@ func (t *Server) Serve() {
 
 func (t *Server) init() {
 	initLogger()
+	t.initDB()
+	fmt.Println("Automigrate", t.Config.DB.Automigrate)
+	if t.Config.DB.Automigrate {
+		t.migration() //remove for production
+	}
 
+}
+
+func (t *Server) migration() { //remove for production
+	fmt.Println("Run Migration --> Start")
+	db.GetMainDB().AutoMigrate(&models.RelayEvent{})
+	fmt.Println("Run Migration --> Done")
+
+}
+
+func (t *Server) initDB() {
+
+	newLogger := gormlogger.New(
+		log.New(os.Stdout, "\r\n", log.LstdFlags), // io writer
+		gormlogger.Config{
+			SlowThreshold:             time.Second,     // Slow SQL threshold
+			LogLevel:                  gormlogger.Info, // Log level
+			IgnoreRecordNotFoundError: true,            // Ignore ErrRecordNotFound error for logger
+			Colorful:                  false,           // Disable color
+		},
+	)
+
+	l := db.Logger{
+		Logger: newLogger,
+	}
+
+	dbConn, err := db.GormOpen(&t.Config.DB, &l)
+	if err != nil {
+		logrus.Fatal(err)
+	}
+	db.SetMainDB(dbConn)
+
+	sqlDB, err := dbConn.DB()
+	if err != nil {
+		logrus.Fatal(err)
+	}
+
+	err = sqlDB.Ping()
+	if err != nil {
+		logrus.Fatal(err)
+	}
 }
 
 func (t *Server) Shutdown(c *gin.Context) {

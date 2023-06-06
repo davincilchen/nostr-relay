@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sync"
 
+	eventUCase "nostr-relay/pkg/app/event/usecase"
 	"nostr-relay/pkg/models"
 
 	"github.com/gorilla/websocket"
@@ -53,6 +54,13 @@ func (t *Session) OnEvent(fromID int, event models.Msg) error {
 	if subID != nil {
 		id = *subID
 	}
+
+	jsonData, _ := json.Marshal(event)
+	eUCase := eventUCase.NewEventHandler()
+	tmp := models.RelayEvent{
+		Data: string(jsonData),
+	}
+	eUCase.SaveEvent(&tmp)
 
 	return t.WriteJson( //use routine
 		[]interface{}{"EVENT", id, event})
